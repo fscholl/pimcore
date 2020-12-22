@@ -35,7 +35,7 @@ class Listing extends Model\Listing\AbstractListing
     /**
      * @var string
      */
-    protected static $domain = "messages";
+    protected static $domain = Model\Translation::DOMAIN_DEFAULT;
 
     /**
      * @return string

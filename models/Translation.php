@@ -31,6 +31,9 @@ use Pimcore\Tool;
  */
 class Translation extends Website implements TranslationInterface
 {
+    const DOMAIN_DEFAULT = 'messages';
+    const DOMAIN_ADMIN = 'admin';
+
     /**
      * @var string
      */
@@ -54,12 +57,7 @@ class Translation extends Website implements TranslationInterface
     /**
      * @var string
      */
-    protected $domain;
-
-    public function __construct($domain = "messages")
-    {
-        $this->setDomain($domain);
-    }
+    protected $domain = self::DOMAIN_DEFAULT;
 
     /**
      * @inheritDoc
@@ -181,7 +179,7 @@ class Translation extends Website implements TranslationInterface
      * @param string $domain
      * @return array
      */
-    public static function getValidLanguages(string $domain = "messages"): array
+    public static function getValidLanguages(string $domain = self::DOMAIN_DEFAULT): array
     {
         if ($domain == "admin") {
             return \Pimcore\Tool\Admin::getLanguages();
@@ -234,7 +232,7 @@ class Translation extends Website implements TranslationInterface
      *
      * @throws \Exception
      */
-    public static function getByKey($id, $domain = "messages", $create = false, $returnIdIfEmpty = false)
+    public static function getByKey($id, $domain = self::DOMAIN_DEFAULT, $create = false, $returnIdIfEmpty = false)
     {
         $cacheKey = 'translation_' . $id;
         if (Runtime::isRegistered($cacheKey)) {
@@ -294,7 +292,7 @@ class Translation extends Website implements TranslationInterface
      *
      * @throws \Exception
      */
-    public static function getByKeyLocalized($id, $domain = "messages", $create = false, $returnIdIfEmpty = false, $language = null)
+    public static function getByKeyLocalized($id, $domain = self::DOMAIN_DEFAULT, $create = false, $returnIdIfEmpty = false, $language = null)
     {
         if ($domain == "admin") {
             if ($user = Tool\Admin::getCurrentUser()) {
@@ -373,7 +371,7 @@ class Translation extends Website implements TranslationInterface
      *
      * @throws \Exception
      */
-    public static function importTranslationsFromFile($file, $domain = "messages", $replaceExistingTranslations = true, $languages = null, $dialect = null)
+    public static function importTranslationsFromFile($file, $domain = self::DOMAIN_DEFAULT, $replaceExistingTranslations = true, $languages = null, $dialect = null)
     {
         $delta = [];
 
