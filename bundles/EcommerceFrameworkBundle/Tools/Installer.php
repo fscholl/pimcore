@@ -25,7 +25,7 @@ use Pimcore\Model\DataObject\ClassDefinition;
 use Pimcore\Model\DataObject\ClassDefinition\Service;
 use Pimcore\Model\DataObject\Fieldcollection;
 use Pimcore\Model\DataObject\Objectbrick;
-use Pimcore\Model\Translation\Admin;
+use Pimcore\Model\Translation;
 use Pimcore\Model\User\Permission;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;
@@ -374,7 +374,7 @@ class Installer extends MigrationInstaller
 
     private function installTranslations()
     {
-        Admin::importTranslationsFromFile($this->installSourcesPath . '/admin-translations/init.csv');
+        Translation::importTranslationsFromFile($this->installSourcesPath . '/admin-translations/init.csv', Translation::DOMAIN_ADMIN);
     }
 
     /**

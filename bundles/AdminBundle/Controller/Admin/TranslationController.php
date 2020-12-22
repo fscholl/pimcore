@@ -73,10 +73,11 @@ class TranslationController extends AdminController
         $overwrite = $merge ? false : true;
 
         if ($admin) {
-            $delta = Translation\Admin::importTranslationsFromFile($tmpFile, $overwrite, Tool\Admin::getLanguages(), $dialect);
+            $delta = Translation::importTranslationsFromFile($tmpFile, Translation::DOMAIN_ADMIN, $overwrite, Tool\Admin::getLanguages(), $dialect);
         } else {
-            $delta = Translation\Website::importTranslationsFromFile(
+            $delta = Translation::importTranslationsFromFile(
                 $tmpFile,
+                Translation::DOMAIN_DEFAULT,
                 $overwrite,
                 $this->getAdminUser()->getAllowedLanguagesForEditingWebsiteTranslations(),
                 $dialect
@@ -158,22 +159,21 @@ class TranslationController extends AdminController
         $admin = $request->get('admin');
         $this->checkPermission(($admin ? 'admin_' : '') . 'translations');
 
+        $class = '\\Pimcore\\Model\\Translation';
+        $domain = Translation::DOMAIN_DEFAULT;
         if ($admin) {
-            $class = '\\Pimcore\\Model\\Translation\\Admin';
-        } else {
-            $class = '\\Pimcore\\Model\\Translation\\Website';
+            $domain = Translation::DOMAIN_ADMIN;
         }
 
-        $tableName = call_user_func($class . '\\Dao::getTableName');
+        $translation = new $class();
+        $translation->setDomain($domain);
+        $tableName = $translation->getDao()->getTableName();
 
         // clear translation cache
-        Translation\AbstractTranslation::clearDependentCache();
+        Translation::clearDependentCache();
 
-        if ($admin) {
-            $list = new Translation\Admin\Listing();
-        } else {
-            $list = new Translation\Website\Listing();
-        }
+        $list = new Translation\Listing();
+        $list::setDomain($domain);
 
         $joins = [];
 
@@ -200,10 +200,11 @@ class TranslationController extends AdminController
         // fill with one dummy translation if the store is empty
         if (empty($translationObjects)) {
             if ($admin) {
-                $t = new Translation\Admin();
+                $t = new Translation();
+                $t->setDomain(Translation::DOMAIN_ADMIN);
                 $languages = Tool\Admin::getLanguages();
             } else {
-                $t = new Translation\Website();
+                $t = new Translation();
                 $languages = $this->getAdminUser()->getAllowedLanguagesForViewingWebsiteTranslations();
             }
 
@@ -271,7 +272,7 @@ class TranslationController extends AdminController
             $csv .= implode(';', $tempRow) . "\r\n";
         }
 
-        $suffix = $admin ? 'admin' : 'website';
+        $suffix = $domain;
         $response = new Response("\xEF\xBB\xBF" . $csv);
         $response->headers->set('Content-Encoding', 'UTF-8');
         $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
@@ -298,13 +299,14 @@ class TranslationController extends AdminController
                 $t = null; // reset
 
                 try {
-                    $t = Translation\Admin::getByKey($translationData);
+                    $t = Translation::getByKey($translationData, Translation::DOMAIN_ADMIN);
                 } catch (\Exception $e) {
                     Logger::log($e);
                 }
-                if (!$t instanceof Translation\Admin) {
-                    $t = new Translation\Admin();
+                if (!$t instanceof Translation) {
+                    $t = new Translation();
 
+                    $t->setDomain(Translation::DOMAIN_ADMIN);
                     $t->setKey($translationData);
                     $t->setCreationDate(time());
                     $t->setModificationDate(time());
@@ -339,27 +341,29 @@ class TranslationController extends AdminController
 
         $this->checkPermission(($admin ? 'admin_' : '') . 'translations');
 
+        $class = '\\Pimcore\\Model\\Translation';
+        $domain = Translation::DOMAIN_DEFAULT;
         if ($admin) {
-            $class = '\\Pimcore\\Model\\Translation\\Admin';
-        } else {
-            $class = '\\Pimcore\\Model\\Translation\\Website';
+            $domain = Translation::DOMAIN_ADMIN;
         }
 
-        $tableName = call_user_func($class . '\\Dao::getTableName');
+        $translation = new $class();
+        $translation->setDomain($domain);
+        $tableName = $translation->getDao()->getTableName();
 
         // clear translation cache
-        Translation\Website::clearDependentCache();
+        Translation::clearDependentCache();
 
         if ($request->get('data')) {
             $data = $this->decodeJson($request->get('data'));
 
             if ($request->get('xaction') == 'destroy') {
-                $t = $class::getByKey($data['key']);
+                $t = $class::getByKey($data['key'], $domain);
                 $t->delete();
 
                 return $this->adminJson(['success' => true, 'data' => []]);
             } elseif ($request->get('xaction') == 'update') {
-                $t = $class::getByKey($data['key']);
+                $t = $class::getByKey($data['key'], $domain);
 
                 foreach ($data as $key => $value) {
                     $key = preg_replace('/^_/', '', $key, 1);
@@ -383,12 +387,13 @@ class TranslationController extends AdminController
 
                 return $this->adminJson(['data' => $return, 'success' => true]);
             } elseif ($request->get('xaction') == 'create') {
-                $t = $class::getByKey($data['key']);
+                $t = $class::getByKey($data['key'], $domain);
                 if ($t) {
-                    throw new \Exception($translator->trans('identifier_already_exists', [], 'admin'));
+                    throw new \Exception($translator->trans('identifier_already_exists', [], $domain));
                 }
 
                 $t = new $class();
+                $t->setDomain($domain);
                 $t->setKey($data['key']);
                 $t->setCreationDate(time());
                 $t->setModificationDate(time());
@@ -411,11 +416,8 @@ class TranslationController extends AdminController
             }
         } else {
             // get list of types
-            if ($admin) {
-                $list = new Translation\Admin\Listing();
-            } else {
-                $list = new Translation\Website\Listing();
-            }
+            $list = new Translation\Listing();
+            $list::setDomain($domain);
 
             $validLanguages = $admin ? Tool\Admin::getLanguages() : $this->getAdminUser()->getAllowedLanguagesForViewingWebsiteTranslations();
 
@@ -497,7 +499,7 @@ class TranslationController extends AdminController
 
     /**
      * @param array $joins
-     * @param Translation\AbstractTranslation\Listing $list
+     * @param Translation\Listing $list
      * @param string $tableName
      * @param array $filters
      */
@@ -649,9 +651,17 @@ class TranslationController extends AdminController
      */
     public function cleanupAction(Request $request)
     {
-        $listClass = '\\Pimcore\\Model\\Translation\\' . ucfirst($request->get('type')) . '\\Listing';
+        $admin = $request->get('admin');
+
+        $listClass = '\\Pimcore\\Model\\Translation\\Listing';
+        $domain = Translation::DOMAIN_DEFAULT;
+        if ($admin) {
+            $domain = Translation::DOMAIN_ADMIN;
+        }
+
         if (Tool::classExists($listClass)) {
             $list = new $listClass();
+            $list::setDomain($domain);
             $list->cleanup();
 
             \Pimcore\Cache::clearTags(['translator', 'translate']);
@@ -1219,8 +1229,14 @@ class TranslationController extends AdminController
         $dataList = json_decode($request->get('data'), true);
 
         $classname = '\\Pimcore\\Model\\Translation\\' . ucfirst($translationType);
+
+        $class = '\\Pimcore\\Model\\Translation';
+        $domain = Translation::DOMAIN_DEFAULT;
+        if ($translationType == "admin") {
+            $domain = Translation::DOMAIN_ADMIN;
+        }
         foreach ($dataList as $data) {
-            $t = $classname::getByKey($data['key'], true);
+            $t = $classname::getByKey($data['key'], $domain, true);
             $newValue = htmlspecialchars_decode($data['current']);
             $t->addTranslation($data['lg'], $newValue);
             $t->setModificationDate(time());
