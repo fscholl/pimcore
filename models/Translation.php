@@ -427,7 +427,7 @@ class Translation extends Website implements TranslationInterface
 
                     $textKey = $keyValueArray['key'];
                     if ($textKey) {
-                        $t = static::getByKey($textKey, true);
+                        $t = static::getByKey($textKey, $domain, true);
                         $dirty = false;
                         foreach ($keyValueArray as $key => $value) {
                             if (in_array($key, $languages)) {
