@@ -15,11 +15,8 @@
  * @license    http://www.pimcore.org/license     GPLv3 and PEL
  */
 
-namespace Pimcore\Model\Translation\AbstractTranslation\Listing\Dao;
+namespace Pimcore\Model\Translation\Listing\Dao;
 
-/**
- * @deprecated
- */
 interface DaoInterface
 {
     public static function getTableName();
