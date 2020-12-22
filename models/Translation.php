@@ -290,7 +290,7 @@ class Translation extends Website implements TranslationInterface
      * @param bool $returnIdIfEmpty
      * @param string|null $language
      *
-     * @return string
+     * @return string|null
      *
      * @throws \Exception
      */
